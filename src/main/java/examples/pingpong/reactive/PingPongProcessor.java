@@ -20,37 +20,30 @@ public class PingPongProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(PingPongProcessor.class);
 
-    private final String party;
+    private String party;
+    private String token;
     private LedgerClient client;
     private String ledgerId;
 
     private final Identifier pingIdentifier;
     private final Identifier pongIdentifier;
 
-    public PingPongProcessor(String party, LedgerClient client, Identifier pingIdentifier, Identifier pongIdentifier) {
+    public PingPongProcessor(String party, String token, LedgerClient client, Identifier pingIdentifier, Identifier pongIdentifier) {
         this.party = party;
+        this.token = token;
         this.ledgerId = client.getLedgerId();
         this.client = client;
         this.pingIdentifier = pingIdentifier;
         this.pongIdentifier = pongIdentifier;
     }
 
-    private static TransactionFilter filterFor(Identifier templateId, String party) {
-        logger.info("Filtering transactions by templateId {} party {}", templateId, party);
-
-        InclusiveFilter inclusiveFilter = new InclusiveFilter(Collections.singleton(templateId));
-        Map<String, Filter> filter = Collections.singletonMap(party, inclusiveFilter);
-        return new FiltersByParty(filter);
-    }
-
-    public void runIndefinitely(Identifier identifier, String partyId, String token) {
+    public void runIndefinitely() {
         // assemble the request for the transaction stream
-        logger.info("{} starts reading transactions. for entityName={}", party, identifier.getEntityName());
+        logger.info("{} starts reading transactions", party);
 
         Flowable<Transaction> transactions = client.getTransactionsClient().getTransactions(
                 LedgerOffset.LedgerEnd.getInstance(),
-                //new FiltersByParty(Collections.singletonMap(party, NoFilter.instance)), true); // <-- original filter from DA
-                filterFor(identifier, partyId), true, token);
+                new FiltersByParty(Collections.singletonMap(party, NoFilter.instance)), true, token);
 
         transactions.forEach(t-> logger.info("transaction = {}", t.toString()));
 
@@ -79,7 +72,7 @@ public class PingPongProcessor {
                     PingPongReactiveMain.APP_ID,
                     UUID.randomUUID().toString(),
                     party,
-                    exerciseCommands)
+                    exerciseCommands, token)
                     .blockingGet();
         }
     }

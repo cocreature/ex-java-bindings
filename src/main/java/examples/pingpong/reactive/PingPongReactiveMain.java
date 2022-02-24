@@ -81,14 +81,14 @@ public class PingPongReactiveMain {
         logger.info("Created two Identifiers for Ping and Pong for module {}", pingIdentifier.getModuleName());
 
         // initialize the ping pong processors for Alice and Bob
-        PingPongProcessor aliceProcessor = new PingPongProcessor(ALICE, client, pingIdentifier, pongIdentifier);
-        PingPongProcessor bobProcessor   = new PingPongProcessor(BOB,   client, pingIdentifier, pongIdentifier);
+        PingPongProcessor aliceProcessor = new PingPongProcessor(alicePartyId, aliceToken, client, pingIdentifier, pongIdentifier);
+        PingPongProcessor bobProcessor   = new PingPongProcessor(bobPartyId, bobToken, client, pingIdentifier, pongIdentifier);
 
         logger.info("Created two PingPongProcessor for Alice and Bob");
 
         // start the processors asynchronously
-        aliceProcessor.runIndefinitely(Ping.TEMPLATE_ID, alicePartyId, aliceToken);
-        bobProcessor.runIndefinitely(Pong.TEMPLATE_ID, bobPartyId, bobToken);
+        aliceProcessor.runIndefinitely();
+        bobProcessor.runIndefinitely();
 
         logger.info("After runIndefinitely for Alice and Bob");
 
