@@ -21,8 +21,8 @@ public class PingPongProcessor {
     private static final Logger logger = LoggerFactory.getLogger(PingPongProcessor.class);
 
     private final String party;
-    private final String ledgerId;
     private LedgerClient client;
+    private String ledgerId;
 
     private final Identifier pingIdentifier;
     private final Identifier pongIdentifier;
@@ -35,12 +35,27 @@ public class PingPongProcessor {
         this.pongIdentifier = pongIdentifier;
     }
 
-    public void runIndefinitely() {
+    private static TransactionFilter filterFor(Identifier templateId, String party) {
+        logger.info("Filtering transactions by templateId {} party {}", templateId, party);
+
+        InclusiveFilter inclusiveFilter = new InclusiveFilter(Collections.singleton(templateId));
+        Map<String, Filter> filter = Collections.singletonMap(party, inclusiveFilter);
+        return new FiltersByParty(filter);
+    }
+
+    public void runIndefinitely(Identifier identifier, String partyId, String token) {
         // assemble the request for the transaction stream
-        logger.info("{} starts reading transactions.", party);
+        logger.info("{} starts reading transactions. for entityName={}", party, identifier.getEntityName());
+
         Flowable<Transaction> transactions = client.getTransactionsClient().getTransactions(
                 LedgerOffset.LedgerEnd.getInstance(),
-                new FiltersByParty(Collections.singletonMap(party, NoFilter.instance)), true);
+                //new FiltersByParty(Collections.singletonMap(party, NoFilter.instance)), true); // <-- original filter from DA
+                filterFor(identifier, partyId), true, token);
+
+        transactions.forEach(t-> logger.info("transaction = {}", t.toString()));
+
+        logger.info("transactions count for party {}", party);
+
         transactions.forEach(this::processTransaction);
     }
 
@@ -50,8 +65,11 @@ public class PingPongProcessor {
      * @param tx the Transaction to process
      */
     private void processTransaction(Transaction tx) {
-        List<Command> exerciseCommands = tx.getEvents().stream()
-                .filter(e -> e instanceof CreatedEvent).map(e -> (CreatedEvent) e)
+        logger.info("processTransaction: {}", tx.toString());
+
+        List<Event> exerciseEvents = tx.getEvents();
+
+        List<Command> exerciseCommands = exerciseEvents.stream().filter(e -> e instanceof CreatedEvent).map(e -> (CreatedEvent) e)
                 .flatMap(e -> processEvent(tx.getWorkflowId(), e))
                 .collect(Collectors.toList());
 
